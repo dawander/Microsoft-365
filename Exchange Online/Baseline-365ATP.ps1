@@ -12,14 +12,20 @@ https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-
     FileName:    Baseline-365ATP.ps1
     Author:      Alex Fields, ITProMentor.com
     Created:     11-18-2019
-	Revised:     11-18-2019
-    Version:     2.0
+	Revised:     03-01-2020
+    Version:     3.0
     
 #>
 ###################################################################################################
 
+#################################################
+## CONFIGURE OFFICE 365 ATP SETTINGS
+#################################################
+Write-Host
+$Answer = Read-Host "Do you want to configure Office 365 ATP with the recommended baseline settings? Type Y or N and press Enter to continue"
+if ($Answer -eq 'y' -or $Answer -eq 'yes') {
 
-Clear-Host
+
 $AcceptedDomains = Get-AcceptedDomain
 $RecipientDomains = $AcceptedDomains.DomainName
 
@@ -28,7 +34,16 @@ write-host -foregroundcolor green "Configuring the Default ATP policy for Office
 
 ## Configures the default ATP policy for Office 365
 ## https://docs.microsoft.com/en-us/powershell/module/exchange/advanced-threat-protection/set-atppolicyforo365?view=exchange-ps
-Set-AtpPolicyForO365 -EnableSafeLinksForClients $true -EnableATPForSPOTeamsODB $true -AllowClickThrough $false -TrackClicks $true
+$AtpPolicyForO365Param=@{
+   'EnableATPForSPOTeamsODB' =  $true;
+   #'EnableSafeLinksForClients' = $true;
+   'EnableSafeLinksForO365Clients' = $true;
+   'EnableSafeDocs' = $false
+   'TrackClicks' = $true;
+   'AllowClickThrough' = $false
+}
+
+Set-AtpPolicyForO365 @AtpPolicyForO365Param
 
 write-host -foregroundcolor green "Default ATP policy for Office 365 has been set."
 
@@ -76,7 +91,7 @@ $SafeAttachmentPolicyParam=@{
    'Name' = "Safe Attachments Baseline Policy";
    'AdminDisplayName' = "Safe Attachments Baseline Policy";
    'Action' =  "Block";
-   'ActionOnError' = $true;
+   'ActionOnError' = $false;
    'Enable' = $true;
    'Redirect' = $false
 }
@@ -108,8 +123,6 @@ $PhishPolicyParam=@{
    ##'AdminDisplayName' = "AntiPhish Baseline Policy";
    'AuthenticationFailAction' =  'Quarantine';
    'EnableAntispoofEnforcement' = $true;
-   'EnableAuthenticationSafetyTip' = $true;
-   'EnableAuthenticationSoftPassSafetyTip' = $true;
    'Enabled' = $true;
    'EnableMailboxIntelligence' = $true;
    'EnableMailboxIntelligenceProtection' = $true;
@@ -122,10 +135,9 @@ $PhishPolicyParam=@{
    'EnableTargetedUserProtection' = $false;
    ##'TargetedUsersToProtect' = $TargetedUsersToProtect;
    'EnableUnusualCharactersSafetyTips' = $true;
-   'PhishThresholdLevel' = 3;
+   'PhishThresholdLevel' = 2;
    'TargetedDomainProtectionAction' =  'Quarantine';
-   'TargetedUserProtectionAction' =  'Quarantine';
-   'TreatSoftPassAsAuthenticated' = $true
+   'TargetedUserProtectionAction' =  'Quarantine'
 }
 
 Set-AntiPhishPolicy -Identity "Office365 AntiPhish Default" @PhishPolicyParam
@@ -151,3 +163,10 @@ New-AntiPhishRule @PhishRuleParam
 Write-Host -foregroundcolor green "The AntiPhish Baseline Policy is deployed."
 
 write-host -foregroundcolor green "Office 365 ATP baseline configuration has completed."
+
+} else {
+
+    Write-Host
+    Write-Host -ForegroundColor $AssessmentColor "Office 365 ATP features have not been modified."
+
+}
