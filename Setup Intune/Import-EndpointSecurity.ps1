@@ -1,23 +1,10 @@
-﻿##
-## This is slightly modified from Microsoft Graph scripts located at:
-## https://github.com/microsoftgraph/powershell-intune-samples/
-##
-## You must specify two variables:
-## 1. The full path to the JSON file for import under the $JSON varaible
-## e.g. C:\Intune\Enrollment-restrictions.json
-## 2. The admin user account who can authenticate to perform the import
-## e.g. intuneadmin@itpromentor.com
-## 
-
-
-Param (
-    $User
-)
-
+﻿
 <#
+
 .COPYRIGHT
 Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT license.
 See LICENSE in the project root for license information.
+
 #>
 
 ####################################################
@@ -162,34 +149,33 @@ $authority = "https://login.microsoftonline.com/$Tenant"
 
 ####################################################
 
-Function Get-DeviceEnrollmentConfigurations(){
-    
+Function Get-EndpointSecurityTemplate(){
+
 <#
 .SYNOPSIS
-This function is used to get Deivce Enrollment Configurations from the Graph API REST interface
+This function is used to get all Endpoint Security templates using the Graph API REST interface
 .DESCRIPTION
-The function connects to the Graph API Interface and gets Device Enrollment Configurations
+The function connects to the Graph API Interface and gets all Endpoint Security templates
 .EXAMPLE
-Get-DeviceEnrollmentConfigurations
-Returns Device Enrollment Configurations configured in Intune
+Get-EndpointSecurityTemplate 
+Gets all Endpoint Security Templates in Endpoint Manager
 .NOTES
-NAME: Get-DeviceEnrollmentConfigurations
+NAME: Get-EndpointSecurityTemplate
 #>
-    
-[cmdletbinding()]
-    
+
+
 $graphApiVersion = "Beta"
-$Resource = "deviceManagement/deviceEnrollmentConfigurations"
-        
+$ESP_resource = "deviceManagement/templates?`$filter=(isof(%27microsoft.graph.securityBaselineTemplate%27))"
+
     try {
-            
-    $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-    (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value
-    
+
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($ESP_resource)"
+        (Invoke-RestMethod -Method Get -Uri $uri -Headers $authToken).value
+
     }
-        
-    catch {
     
+    catch {
+
     $ex = $_.Exception
     $errorResponse = $ex.Response.GetResponseStream()
     $reader = New-Object System.IO.StreamReader($errorResponse)
@@ -200,67 +186,60 @@ $Resource = "deviceManagement/deviceEnrollmentConfigurations"
     Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
     write-host
     break
-    
+
     }
-    
+
 }
 
 ####################################################
-    
-Function Set-DeviceEnrollmentConfiguration(){
-    
+
+Function Add-EndpointSecurityPolicy(){
+
 <#
 .SYNOPSIS
-This function is used to set the Device Enrollment Configuration resource using the Graph API REST interface
+This function is used to add an Endpoint Security policy using the Graph API REST interface
 .DESCRIPTION
-The function connects to the Graph API Interface and sets the Device Enrollment Configuration Resource
+The function connects to the Graph API Interface and adds an Endpoint Security  policy
 .EXAMPLE
-Set-DeviceEnrollmentConfiguration -DEC_Id $DEC_Id -JSON $JSON
-Sets the Device Enrollment Configuration using Graph API
+Add-EndpointSecurityDiskEncryptionPolicy -JSON $JSON -TemplateId $templateId
+Adds an Endpoint Security Policy in Endpoint Manager
 .NOTES
-NAME: Set-DeviceEnrollmentConfiguration
+NAME: Add-EndpointSecurityPolicy
 #>
-    
+
 [cmdletbinding()]
-    
+
 param
 (
-    $JSON,
-    $DEC_Id
+    $TemplateId,
+    $JSON
 )
-    
+
 $graphApiVersion = "Beta"
-$App_resource = "deviceManagement/deviceEnrollmentConfigurations"
-        
+$ESP_resource = "deviceManagement/templates/$TemplateId/createInstance"
+Write-Verbose "Resource: $ESP_resource"
+
     try {
-    
-        if(!$JSON){
-    
-        write-host "No JSON was passed to the function, provide a JSON variable" -f Red
-        break
-    
+
+        if($JSON -eq "" -or $JSON -eq $null){
+
+        write-host "No JSON specified, please specify valid JSON for the Endpoint Security Policy..." -f Red
+
         }
-    
-        elseif(!$DEC_Id){
-    
-        write-host "No Device Enrollment Configuration ID was passed to the function, provide a Device Enrollment Configuration ID" -f Red
-        break
-    
-        }
-    
+
         else {
-    
+
         Test-JSON -JSON $JSON
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($App_resource)/$DEC_Id"
-        Invoke-RestMethod -Uri $uri -Method Patch -ContentType "application/json" -Body $JSON -Headers $authToken
-    
+
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($ESP_resource)"
+        Invoke-RestMethod -Uri $uri -Headers $authToken -Method Post -Body $JSON -ContentType "application/json"
+
         }
-        
+
     }
-        
-    catch {
     
+    catch {
+
     $ex = $_.Exception
     $errorResponse = $ex.Response.GetResponseStream()
     $reader = New-Object System.IO.StreamReader($errorResponse)
@@ -271,9 +250,9 @@ $App_resource = "deviceManagement/deviceEnrollmentConfigurations"
     Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
     write-host
     break
-    
+
     }
-    
+
 }
 
 ####################################################
@@ -289,7 +268,7 @@ The function tests if the JSON passed to the REST Post is valid
 Test-JSON -JSON $JSON
 Test if the JSON is valid before calling the Graph REST interface
 .NOTES
-NAME: Test-AuthHeader
+NAME: Test-JSON
 #>
 
 param (
@@ -313,7 +292,7 @@ $JSON
     }
 
     if (!$validJson){
-
+    
     Write-Host "Provided JSON isn't in valid JSON format" -f Red
     break
 
@@ -375,54 +354,137 @@ $global:authToken = Get-AuthToken -User $User
 
 ####################################################
 
-$JSON = @"
-{
-    "@odata.type":"#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration",
-    "displayName":"All Users",
-    "description":"This is the default Device Type Restriction applied with the lowest priority to all users regardless of group membership.",
-    "androidRestriction":{
-    "platformBlocked":false,
-    "personalDeviceEnrollmentBlocked":false,
-    "osMinimumVersion":"",
-    "osMaximumVersion":""
-    },
-    "androidForWorkRestriction":{
-    "platformBlocked":false,
-    "personalDeviceEnrollmentBlocked":false,
-    "osMinimumVersion":null,
-    "osMaximumVersion":null
-    },
-    "iosRestriction":{
-    "platformBlocked":false,
-    "personalDeviceEnrollmentBlocked":false,
-    "osMinimumVersion":"",
-    "osMaximumVersion":""
-    },
-    "macRestriction":{
-    "platformBlocked":false,
-    "personalDeviceEnrollmentBlocked":false,
-    "osMinimumVersion":null,
-    "osMaximumVersion":null
-    },
-    "windowsRestriction":{
-    "platformBlocked":false,
-    "personalDeviceEnrollmentBlocked":false,
-    "osMinimumVersion":"",
-    "osMaximumVersion":""
-    },
-    "windowsMobileRestriction":{
-    "platformBlocked":true,
-    "personalDeviceEnrollmentBlocked":false,
-    "osMinimumVersion":"",
-    "osMaximumVersion":""
-    }
+$ImportPath = Read-Host -Prompt "Please specify a path to a JSON file to import data from e.g. C:\IntuneOutput\Policies\policy.json"
+
+# Replacing quotes for Test-Path
+$ImportPath = $ImportPath.replace('"','')
+
+if(!(Test-Path "$ImportPath")){
+
+Write-Host "Import Path for JSON file doesn't exist..." -ForegroundColor Red
+Write-Host "Script can't continue..." -ForegroundColor Red
+Write-Host
+break
+
 }
-"@
 
 ####################################################
 
-$DeviceEnrollmentConfigurations = Get-DeviceEnrollmentConfigurations
+# Getting content of JSON Import file
+$JSON_Data = gc "$ImportPath"
 
-$PlatformRestrictions = ($DeviceEnrollmentConfigurations | Where-Object { ($_.id).contains("DefaultPlatformRestrictions") }).id
+# Converting input to JSON format
+$JSON_Convert = $JSON_Data | ConvertFrom-Json
 
-Set-DeviceEnrollmentConfiguration -DEC_Id $PlatformRestrictions -JSON $JSON
+# Pulling out variables to use in the import
+$JSON_DN = $JSON_Convert.displayName
+$JSON_TemplateDisplayName = $JSON_Convert.TemplateDisplayName
+$JSON_TemplateId = $JSON_Convert.templateId
+
+Write-Host
+Write-Host "Endpoint Security Policy '$JSON_DN' found..." -ForegroundColor Cyan
+Write-Host "Template Display Name: $JSON_TemplateDisplayName"
+Write-Host "Template ID: $JSON_TemplateId"
+
+####################################################
+
+# Get all Endpoint Security Templates
+$Templates = Get-EndpointSecurityTemplate
+
+####################################################
+
+# Checking if templateId from JSON is a valid templateId
+$ES_Template = $Templates | ?  { $_.id -eq $JSON_TemplateId }
+
+####################################################
+
+# If template is a baseline Edge, MDATP or Windows, use templateId specified
+if(($ES_Template.templateType -eq "microsoftEdgeSecurityBaseline") -or ($ES_Template.templateType -eq "securityBaseline") -or ($ES_Template.templateType -eq "advancedThreatProtectionSecurityBaseline")){
+
+    $TemplateId = $JSON_Convert.templateId
+
+}
+
+####################################################
+
+# Else If not a baseline, check if template is deprecated
+elseif($ES_Template){
+
+    # if template isn't deprecated use templateId
+    if($ES_Template.isDeprecated -eq $false){
+
+        $TemplateId = $JSON_Convert.templateId
+
+    }
+
+    # If template deprecated, look for lastest version
+    elseif($ES_Template.isDeprecated -eq $true) {
+
+        $Template = $Templates | ? { $_.displayName -eq "$JSON_TemplateDisplayName" }
+
+        $Template = $Template | ? { $_.isDeprecated -eq $false }
+
+        $TemplateId = $Template.id
+
+    }
+
+}
+
+####################################################
+
+# Else If Imported JSON template ID can't be found check if Template Display Name can be used
+elseif($ES_Template -eq $null){
+
+    Write-Host "Didn't find Template with ID $JSON_TemplateId, checking if Template DisplayName '$JSON_TemplateDisplayName' can be used..." -ForegroundColor Red
+    $ES_Template = $Templates | ?  { $_.displayName -eq "$JSON_TemplateDisplayName" }
+
+    If($ES_Template){
+
+        if(($ES_Template.templateType -eq "securityBaseline") -or ($ES_Template.templateType -eq "advancedThreatProtectionSecurityBaseline")){
+
+            Write-Host
+            Write-Host "TemplateID '$JSON_TemplateId' with template Name '$JSON_TemplateDisplayName' doesn't exist..." -ForegroundColor Red
+            Write-Host "Importing using the updated template could fail as settings specified may not be included in the latest template..." -ForegroundColor Red
+            Write-Host
+            break
+
+        }
+
+        else {
+
+            Write-Host "Template with displayName '$JSON_TemplateDisplayName' found..." -ForegroundColor Green
+
+            $Template = $ES_Template | ? { $_.isDeprecated -eq $false }
+
+            $TemplateId = $Template.id
+
+        }
+
+    }
+
+    else {
+
+        Write-Host
+        Write-Host "TemplateID '$JSON_TemplateId' with template Name '$JSON_TemplateDisplayName' doesn't exist..." -ForegroundColor Red
+        Write-Host "Importing using the updated template could fail as settings specified may not be included in the latest template..." -ForegroundColor Red
+        Write-Host
+        break
+
+    }
+
+}
+
+####################################################
+
+# Excluding certain properties from JSON that aren't required for import
+$JSON_Convert = $JSON_Convert | Select-Object -Property * -ExcludeProperty TemplateDisplayName,TemplateId,versionInfo
+
+$DisplayName = $JSON_Convert.displayName
+
+$JSON_Output = $JSON_Convert | ConvertTo-Json -Depth 5
+
+write-host
+$JSON_Output
+write-host
+Write-Host "Adding Endpoint Security Policy '$DisplayName'" -ForegroundColor Yellow
+Add-EndpointSecurityPolicy -TemplateId $TemplateId -JSON $JSON_Output

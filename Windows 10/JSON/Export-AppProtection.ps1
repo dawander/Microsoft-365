@@ -149,84 +149,50 @@ $authority = "https://login.microsoftonline.com/$Tenant"
 
 ####################################################
 
-Function Get-DeviceCompliancePolicy(){
+Function Get-ManagedAppPolicy(){
 
 <#
 .SYNOPSIS
-This function is used to get device compliance policies from the Graph API REST interface
+This function is used to get managed app policies from the Graph API REST interface
 .DESCRIPTION
-The function connects to the Graph API Interface and gets any device compliance policies
+The function connects to the Graph API Interface and gets any managed app policies
 .EXAMPLE
-Get-DeviceCompliancePolicy
-Returns any device compliance policies configured in Intune
-.EXAMPLE
-Get-DeviceCompliancePolicy -Android
-Returns any device compliance policies for Android configured in Intune
-.EXAMPLE
-Get-DeviceCompliancePolicy -iOS
-Returns any device compliance policies for iOS configured in Intune
+Get-ManagedAppPolicy
+Returns any managed app policies configured in Intune
 .NOTES
-NAME: Get-DeviceCompliancePolicy
+NAME: Get-ManagedAppPolicy
 #>
 
 [cmdletbinding()]
 
 param
 (
-    [switch]$Android,
-    [switch]$iOS,
-    [switch]$Win10
+    $Name
 )
 
 $graphApiVersion = "Beta"
-$Resource = "deviceManagement/deviceCompliancePolicies"
-    
+$Resource = "deviceAppManagement/managedAppPolicies"
+
     try {
-
-        $Count_Params = 0
-
-        if($Android.IsPresent){ $Count_Params++ }
-        if($iOS.IsPresent){ $Count_Params++ }
-        if($Win10.IsPresent){ $Count_Params++ }
-
-        if($Count_Params -gt 1){
-        
-        write-host "Multiple parameters set, specify a single parameter -Android -iOS or -Win10 against the function" -f Red
-        
-        }
-        
-        elseif($Android){
-        
+    
+        if($Name){
+    
         $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("android") }
-        
+        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'displayName').contains("$Name") }
+    
         }
-        
-        elseif($iOS){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("ios") }
-        
-        }
-
-        elseif($Win10){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("windows10CompliancePolicy") }
-        
-        }
-        
+    
         else {
-
+    
         $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value
-
+        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("ManagedAppProtection") -or ($_.'@odata.type').contains("InformationProtectionPolicy") }
+    
         }
-
+    
     }
     
     catch {
-
+    
     $ex = $_.Exception
     $errorResponse = $ex.Response.GetResponseStream()
     $reader = New-Object System.IO.StreamReader($errorResponse)
@@ -237,7 +203,116 @@ $Resource = "deviceManagement/deviceCompliancePolicies"
     Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
     write-host
     break
+    
+    }
+    
+}
 
+####################################################
+
+Function Get-ManagedAppProtection(){
+
+<#
+.SYNOPSIS
+This function is used to get managed app protection configuration from the Graph API REST interface
+.DESCRIPTION
+The function connects to the Graph API Interface and gets any managed app protection policy
+.EXAMPLE
+Get-ManagedAppProtection -id $id -OS "Android"
+Returns a managed app protection policy for Android configured in Intune
+Get-ManagedAppProtection -id $id -OS "iOS"
+Returns a managed app protection policy for iOS configured in Intune
+Get-ManagedAppProtection -id $id -OS "WIP_WE"
+Returns a managed app protection policy for Windows 10 without enrollment configured in Intune
+.NOTES
+NAME: Get-ManagedAppProtection
+#>
+
+[cmdletbinding()]
+
+param
+(
+    [Parameter(Mandatory=$true)]
+    $id,
+    [Parameter(Mandatory=$true)]
+    [ValidateSet("Android","iOS","WIP_WE","WIP_MDM")]
+    $OS    
+)
+
+$graphApiVersion = "Beta"
+
+    try {
+    
+        if($id -eq "" -or $id -eq $null){
+    
+        write-host "No Managed App Policy id specified, please provide a policy id..." -f Red
+        break
+    
+        }
+    
+        else {
+    
+            if($OS -eq "" -or $OS -eq $null){
+    
+            write-host "No OS parameter specified, please provide an OS. Supported value are Android,iOS,WIP_WE,WIP_MDM..." -f Red
+            Write-Host
+            break
+    
+            }
+    
+            elseif($OS -eq "Android"){
+    
+            $Resource = "deviceAppManagement/androidManagedAppProtections('$id')/?`$expand=apps"
+    
+            $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+            Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get
+    
+            }
+    
+            elseif($OS -eq "iOS"){
+    
+            $Resource = "deviceAppManagement/iosManagedAppProtections('$id')/?`$expand=apps"
+    
+            $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+            Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get
+    
+            }
+
+            elseif($OS -eq "WIP_WE"){
+    
+            $Resource = "deviceAppManagement/windowsInformationProtectionPolicies('$id')?`$expand=protectedAppLockerFiles,exemptAppLockerFiles,assignments"
+    
+            $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+            Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get
+    
+            }
+
+            elseif($OS -eq "WIP_MDM"){
+    
+            $Resource = "deviceAppManagement/mdmWindowsInformationProtectionPolicies('$id')?`$expand=protectedAppLockerFiles,exemptAppLockerFiles,assignments"
+    
+            $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+            Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get
+
+            }
+    
+        }
+    
+    }
+
+    catch {
+    
+    $ex = $_.Exception
+    $errorResponse = $ex.Response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($errorResponse)
+    $reader.BaseStream.Position = 0
+    $reader.DiscardBufferedData()
+    $responseBody = $reader.ReadToEnd();
+    Write-Host "Response content:`n$responseBody" -f Red
+    Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    write-host
+    break
+    
     }
 
 }
@@ -298,22 +373,11 @@ $ExportPath
 
         $Properties = ($JSON_Convert | Get-Member | ? { $_.MemberType -eq "NoteProperty" }).Name
 
-            $FileName_CSV = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + ".csv"
             $FileName_JSON = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + ".json"
-
-            $Object = New-Object System.Object
-
-                foreach($Property in $Properties){
-
-                $Object | Add-Member -MemberType NoteProperty -Name $Property -Value $JSON_Convert.$Property
-
-                }
 
             write-host "Export Path:" "$ExportPath"
 
-            $Object | Export-Csv -LiteralPath "$ExportPath\$FileName_CSV" -Delimiter "," -NoTypeInformation -Append
             $JSON1 | Set-Content -LiteralPath "$ExportPath\$FileName_JSON"
-            write-host "CSV created in $ExportPath\$FileName_CSV..." -f cyan
             write-host "JSON created in $ExportPath\$FileName_JSON..." -f cyan
             
         }
@@ -385,7 +449,6 @@ $global:authToken = Get-AuthToken -User $User
 $ExportPath = Read-Host -Prompt "Please specify a path to export the policy data to e.g. C:\IntuneOutput"
 
     # If the directory path doesn't exist prompt user to create the directory
-    $ExportPath = $ExportPath.replace('"','')
 
     if(!(Test-Path "$ExportPath")){
 
@@ -415,12 +478,44 @@ Write-Host
 
 ####################################################
 
-$CPs = Get-DeviceCompliancePolicy
+write-host "Running query against Microsoft Graph for App Protection Policies" -f Yellow
 
-    foreach($CP in $CPs){
+$ManagedAppPolicies = Get-ManagedAppPolicy | ? { ($_.'@odata.type').contains("ManagedAppProtection") }
 
-    write-host "Device Compliance Policy:"$CP.displayName -f Yellow
-    Export-JSONData -JSON $CP -ExportPath "$ExportPath"
+write-host
+
+if($ManagedAppPolicies){
+
+    foreach($ManagedAppPolicy in $ManagedAppPolicies){
+
+    write-host "Managed App Policy:"$ManagedAppPolicy.displayName -f Cyan
+
+        if($ManagedAppPolicy.'@odata.type' -eq "#microsoft.graph.androidManagedAppProtection"){
+
+            $AppProtectionPolicy = Get-ManagedAppProtection -id $ManagedAppPolicy.id -OS "Android"
+
+            $AppProtectionPolicy | Add-Member -MemberType NoteProperty -Name '@odata.type' -Value "#microsoft.graph.androidManagedAppProtection"
+
+            $AppProtectionPolicy
+
+            Export-JSONData -JSON $AppProtectionPolicy -ExportPath "$ExportPath"
+
+        }
+
+        elseif($ManagedAppPolicy.'@odata.type' -eq "#microsoft.graph.iosManagedAppProtection"){
+
+            $AppProtectionPolicy = Get-ManagedAppProtection -id $ManagedAppPolicy.id -OS "iOS"
+
+            $AppProtectionPolicy | Add-Member -MemberType NoteProperty -Name '@odata.type' -Value "#microsoft.graph.iosManagedAppProtection"
+
+            $AppProtectionPolicy
+
+            Export-JSONData -JSON $AppProtectionPolicy -ExportPath "$ExportPath"
+
+        }
+
     Write-Host
 
     }
+
+}

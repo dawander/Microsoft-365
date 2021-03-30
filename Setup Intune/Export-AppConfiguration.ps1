@@ -1,6 +1,5 @@
-﻿
-<#
-
+﻿<#
+ 
 .COPYRIGHT
 Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT license.
 See LICENSE in the project root for license information.
@@ -89,13 +88,13 @@ Write-Host "Checking for AzureAD module..."
 [System.Reflection.Assembly]::LoadFrom($adalforms) | Out-Null
 
 $clientId = "d1ddf0e4-d672-4dae-b554-9d5bdfd93547"
-
+ 
 $redirectUri = "urn:ietf:wg:oauth:2.0:oob"
-
+ 
 $resourceAppIdURI = "https://graph.microsoft.com"
-
+ 
 $authority = "https://login.microsoftonline.com/$Tenant"
-
+ 
     try {
 
     $authContext = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext" -ArgumentList $authority
@@ -147,82 +146,123 @@ $authority = "https://login.microsoftonline.com/$Tenant"
 
 }
 
+
 ####################################################
 
-Function Get-DeviceCompliancePolicy(){
+Function Get-ManagedAppAppConfigPolicy(){
 
 <#
 .SYNOPSIS
-This function is used to get device compliance policies from the Graph API REST interface
+This function is used to get app configuration policies for managed apps from the Graph API REST interface
 .DESCRIPTION
-The function connects to the Graph API Interface and gets any device compliance policies
+The function connects to the Graph API Interface and gets any app configuration policy for managed apps
 .EXAMPLE
-Get-DeviceCompliancePolicy
-Returns any device compliance policies configured in Intune
-.EXAMPLE
-Get-DeviceCompliancePolicy -Android
-Returns any device compliance policies for Android configured in Intune
-.EXAMPLE
-Get-DeviceCompliancePolicy -iOS
-Returns any device compliance policies for iOS configured in Intune
+Get-ManagedAppAppConfigPolicy
+Returns any app configuration policy for managed apps configured in Intune
 .NOTES
-NAME: Get-DeviceCompliancePolicy
+NAME: Get-ManagedAppAppConfigPolicy
 #>
 
-[cmdletbinding()]
+$graphApiVersion = "Beta"
+$Resource = "deviceAppManagement/targetedManagedAppConfigurations?`$expand=apps"
+    
+   try{
+        
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value 
+        
+    }
+    
+    catch {
 
-param
-(
-    [switch]$Android,
-    [switch]$iOS,
-    [switch]$Win10
+    $ex = $_.Exception
+    $errorResponse = $ex.Response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($errorResponse)
+    $reader.BaseStream.Position = 0
+    $reader.DiscardBufferedData()
+    $responseBody = $reader.ReadToEnd();
+    Write-Host "Response content:`n$responseBody" -f Red
+    Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    write-host
+    break
+
+    }
+
+}
+
+####################################################
+
+Function Get-ManagedDeviceAppConfigPolicy(){
+
+<#
+.SYNOPSIS
+This function is used to get app configuration policies for managed devices from the Graph API REST interface
+.DESCRIPTION
+The function connects to the Graph API Interface and gets any app configuration policy for managed devices
+.EXAMPLE
+Get-ManagedDeviceAppConfigPolicy
+Returns any app configuration policy for managed devices configured in Intune
+.NOTES
+NAME: Get-ManagedDeviceAppConfigPolicy
+#>
+
+$graphApiVersion = "Beta"
+$Resource = "deviceAppManagement/mobileAppConfigurations"
+
+   try{
+        
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value 
+        
+    }
+    
+    catch {
+
+    $ex = $_.Exception
+    $errorResponse = $ex.Response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($errorResponse)
+    $reader.BaseStream.Position = 0
+    $reader.DiscardBufferedData()
+    $responseBody = $reader.ReadToEnd();
+    Write-Host "Response content:`n$responseBody" -f Red
+    Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    write-host
+    break
+
+    }
+
+}
+
+####################################################
+
+Function Get-AppBundleID(){
+
+<#
+.SYNOPSIS
+This function is used to get an app bundle ID from the Graph API REST interface
+.DESCRIPTION
+The function connects to the Graph API Interface and gets the app bundle ID for the specified app GUID
+.EXAMPLE
+Get-AppBundleID -guid 
+Returns the bundle ID for the specified app GUID in Intune
+.NOTES
+NAME: Get-AppBundleID
+#>
+
+param (
+
+$GUID
+
 )
 
 $graphApiVersion = "Beta"
-$Resource = "deviceManagement/deviceCompliancePolicies"
-    
-    try {
+$Resource = "deviceAppManagement/mobileApps?`$filter=id eq '$GUID'"
 
-        $Count_Params = 0
-
-        if($Android.IsPresent){ $Count_Params++ }
-        if($iOS.IsPresent){ $Count_Params++ }
-        if($Win10.IsPresent){ $Count_Params++ }
-
-        if($Count_Params -gt 1){
-        
-        write-host "Multiple parameters set, specify a single parameter -Android -iOS or -Win10 against the function" -f Red
-        
-        }
-        
-        elseif($Android){
+   try{
         
         $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("android") }
+        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).value
         
-        }
-        
-        elseif($iOS){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("ios") }
-        
-        }
-
-        elseif($Win10){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("windows10CompliancePolicy") }
-        
-        }
-        
-        else {
-
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value
-
-        }
-
     }
     
     catch {
@@ -261,9 +301,11 @@ NAME: Export-JSONData
 param (
 
 $JSON,
-$ExportPath
+$ExportPath,
+$bundleID
 
 )
+
 
     try {
 
@@ -298,8 +340,8 @@ $ExportPath
 
         $Properties = ($JSON_Convert | Get-Member | ? { $_.MemberType -eq "NoteProperty" }).Name
 
-            $FileName_CSV = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + ".csv"
-            $FileName_JSON = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + ".json"
+            
+            $FileName_JSON = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + "1.json"
 
             $Object = New-Object System.Object
 
@@ -309,11 +351,16 @@ $ExportPath
 
                 }
 
-            write-host "Export Path:" "$ExportPath"
+                If($bundleID)
+                {
 
-            $Object | Export-Csv -LiteralPath "$ExportPath\$FileName_CSV" -Delimiter "," -NoTypeInformation -Append
-            $JSON1 | Set-Content -LiteralPath "$ExportPath\$FileName_JSON"
-            write-host "CSV created in $ExportPath\$FileName_CSV..." -f cyan
+                    $Object | Add-Member -MemberType NoteProperty -name "bundleID" -Value $bundleID
+
+                }
+
+            write-host "Export Path:" "$ExportPath"
+        
+            $object | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$ExportPath\$FileName_JSON"
             write-host "JSON created in $ExportPath\$FileName_JSON..." -f cyan
             
         }
@@ -348,7 +395,7 @@ if($global:authToken){
         write-host "Authentication Token expired" $TokenExpires "minutes ago" -ForegroundColor Yellow
         write-host
 
-            # Defining User Principal Name if not present
+            # Defining Azure AD tenant name, this is the name of your Azure Active Directory (do not use the verified domain name)
 
             if($User -eq $null -or $User -eq ""){
 
@@ -380,6 +427,7 @@ $global:authToken = Get-AuthToken -User $User
 
 #endregion
 
+   
 ####################################################
 
 $ExportPath = Read-Host -Prompt "Please specify a path to export the policy data to e.g. C:\IntuneOutput"
@@ -415,12 +463,41 @@ Write-Host
 
 ####################################################
 
-$CPs = Get-DeviceCompliancePolicy
 
-    foreach($CP in $CPs){
+Write-Host "----------------------------------------------------"
+Write-Host
 
-    write-host "Device Compliance Policy:"$CP.displayName -f Yellow
-    Export-JSONData -JSON $CP -ExportPath "$ExportPath"
+ $managedAppAppConfigPolicies = Get-ManagedAppAppConfigPolicy
+
+    foreach($policy in $managedAppAppConfigPolicies){
+
+    write-host "(Managed App) App Configuration Policy:"$policy.displayName -f Yellow
+    Export-JSONData -JSON $policy -ExportPath "$ExportPath"
     Write-Host
+
+    }
+
+$managedDeviceAppConfigPolicies = Get-ManagedDeviceAppConfigPolicy
+
+    foreach($policy in $managedDeviceAppConfigPolicies){
+
+    write-host "(Managed Device) App Configuration  Policy:"$policy.displayName -f Yellow
+    
+        #If this is an Managed Device App Config for iOS, lookup the bundleID to support importing to a different tenant
+        If($policy.'@odata.type' -eq "#microsoft.graph.iosMobileAppConfiguration"){
+
+            $bundleID = Get-AppBundleID -GUID $policy.targetedMobileApps
+            Export-JSONData -JSON $policy -ExportPath "$ExportPath" -bundleID $bundleID.bundleID
+            Write-Host
+
+        }
+    
+
+        Else{
+
+            Export-JSONData -JSON $policy -ExportPath "$ExportPath"
+            Write-Host
+
+        }
 
     }

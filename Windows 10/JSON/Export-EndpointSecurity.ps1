@@ -149,79 +149,179 @@ $authority = "https://login.microsoftonline.com/$Tenant"
 
 ####################################################
 
-Function Get-DeviceCompliancePolicy(){
+Function Get-EndpointSecurityTemplate(){
 
 <#
 .SYNOPSIS
-This function is used to get device compliance policies from the Graph API REST interface
+This function is used to get all Endpoint Security templates using the Graph API REST interface
 .DESCRIPTION
-The function connects to the Graph API Interface and gets any device compliance policies
+The function connects to the Graph API Interface and gets all Endpoint Security templates
 .EXAMPLE
-Get-DeviceCompliancePolicy
-Returns any device compliance policies configured in Intune
-.EXAMPLE
-Get-DeviceCompliancePolicy -Android
-Returns any device compliance policies for Android configured in Intune
-.EXAMPLE
-Get-DeviceCompliancePolicy -iOS
-Returns any device compliance policies for iOS configured in Intune
+Get-EndpointSecurityTemplate 
+Gets all Endpoint Security Templates in Endpoint Manager
 .NOTES
-NAME: Get-DeviceCompliancePolicy
+NAME: Get-EndpointSecurityTemplate
+#>
+
+
+$graphApiVersion = "Beta"
+$ESP_resource = "deviceManagement/templates?`$filter=(isof(%27microsoft.graph.securityBaselineTemplate%27))"
+
+    try {
+
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($ESP_resource)"
+        (Invoke-RestMethod -Method Get -Uri $uri -Headers $authToken).value
+
+    }
+    
+    catch {
+
+    $ex = $_.Exception
+    $errorResponse = $ex.Response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($errorResponse)
+    $reader.BaseStream.Position = 0
+    $reader.DiscardBufferedData()
+    $responseBody = $reader.ReadToEnd();
+    Write-Host "Response content:`n$responseBody" -f Red
+    Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    write-host
+    break
+
+    }
+
+}
+
+####################################################
+
+Function Get-EndpointSecurityPolicy(){
+
+<#
+.SYNOPSIS
+This function is used to get all Endpoint Security policies using the Graph API REST interface
+.DESCRIPTION
+The function connects to the Graph API Interface and gets all Endpoint Security templates
+.EXAMPLE
+Get-EndpointSecurityPolicy
+Gets all Endpoint Security Policies in Endpoint Manager
+.NOTES
+NAME: Get-EndpointSecurityPolicy
+#>
+
+
+$graphApiVersion = "Beta"
+$ESP_resource = "deviceManagement/intents"
+
+    try {
+
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($ESP_resource)"
+        (Invoke-RestMethod -Method Get -Uri $uri -Headers $authToken).value
+
+    }
+    
+    catch {
+
+    $ex = $_.Exception
+    $errorResponse = $ex.Response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($errorResponse)
+    $reader.BaseStream.Position = 0
+    $reader.DiscardBufferedData()
+    $responseBody = $reader.ReadToEnd();
+    Write-Host "Response content:`n$responseBody" -f Red
+    Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    write-host
+    break
+
+    }
+
+}
+
+####################################################
+
+Function Get-EndpointSecurityTemplateCategory(){
+
+<#
+.SYNOPSIS
+This function is used to get all Endpoint Security categories from a specific template using the Graph API REST interface
+.DESCRIPTION
+The function connects to the Graph API Interface and gets all template categories
+.EXAMPLE
+Get-EndpointSecurityTemplateCategory -TemplateId $templateId
+Gets an Endpoint Security Categories from a specific template in Endpoint Manager
+.NOTES
+NAME: Get-EndpointSecurityTemplateCategory
 #>
 
 [cmdletbinding()]
 
 param
 (
-    [switch]$Android,
-    [switch]$iOS,
-    [switch]$Win10
+    [Parameter(Mandatory=$true)]
+    [ValidateNotNullOrEmpty()]
+    $TemplateId
 )
 
 $graphApiVersion = "Beta"
-$Resource = "deviceManagement/deviceCompliancePolicies"
-    
+$ESP_resource = "deviceManagement/templates/$TemplateId/categories"
+
     try {
 
-        $Count_Params = 0
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($ESP_resource)"
+        (Invoke-RestMethod -Method Get -Uri $uri -Headers $authToken).value
 
-        if($Android.IsPresent){ $Count_Params++ }
-        if($iOS.IsPresent){ $Count_Params++ }
-        if($Win10.IsPresent){ $Count_Params++ }
+    }
+    
+    catch {
 
-        if($Count_Params -gt 1){
-        
-        write-host "Multiple parameters set, specify a single parameter -Android -iOS or -Win10 against the function" -f Red
-        
-        }
-        
-        elseif($Android){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("android") }
-        
-        }
-        
-        elseif($iOS){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("ios") }
-        
-        }
+    $ex = $_.Exception
+    $errorResponse = $ex.Response.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($errorResponse)
+    $reader.BaseStream.Position = 0
+    $reader.DiscardBufferedData()
+    $responseBody = $reader.ReadToEnd();
+    Write-Host "Response content:`n$responseBody" -f Red
+    Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    write-host
+    break
 
-        elseif($Win10){
-        
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value | Where-Object { ($_.'@odata.type').contains("windows10CompliancePolicy") }
-        
-        }
-        
-        else {
+    }
 
-        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-        (Invoke-RestMethod -Uri $uri -Headers $authToken -Method Get).Value
+}
 
-        }
+####################################################
+
+Function Get-EndpointSecurityCategorySetting(){
+
+<#
+.SYNOPSIS
+This function is used to get an Endpoint Security category setting from a specific policy using the Graph API REST interface
+.DESCRIPTION
+The function connects to the Graph API Interface and gets a policy category setting
+.EXAMPLE
+Get-EndpointSecurityCategorySetting -PolicyId $policyId -categoryId $categoryId
+Gets an Endpoint Security Categories from a specific template in Endpoint Manager
+.NOTES
+NAME: Get-EndpointSecurityCategory
+#>
+
+[cmdletbinding()]
+
+param
+(
+    [Parameter(Mandatory=$true)]
+    [ValidateNotNullOrEmpty()]
+    $PolicyId,
+    [Parameter(Mandatory=$true)]
+    [ValidateNotNullOrEmpty()]
+    $categoryId
+)
+
+$graphApiVersion = "Beta"
+$ESP_resource = "deviceManagement/intents/$policyId/categories/$categoryId/settings?`$expand=Microsoft.Graph.DeviceManagementComplexSettingInstance/Value"
+
+    try {
+
+        $uri = "https://graph.microsoft.com/$graphApiVersion/$($ESP_resource)"
+        (Invoke-RestMethod -Method Get -Uri $uri -Headers $authToken).value
 
     }
     
@@ -296,24 +396,12 @@ $ExportPath
         # Updating display name to follow file naming conventions - https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx
         $DisplayName = $DisplayName -replace '\<|\>|:|"|/|\\|\||\?|\*', "_"
 
-        $Properties = ($JSON_Convert | Get-Member | ? { $_.MemberType -eq "NoteProperty" }).Name
-
-            $FileName_CSV = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + ".csv"
-            $FileName_JSON = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss) + ".json"
-
-            $Object = New-Object System.Object
-
-                foreach($Property in $Properties){
-
-                $Object | Add-Member -MemberType NoteProperty -Name $Property -Value $JSON_Convert.$Property
-
-                }
+            # Added milliseconds to date format due to duplicate policy name
+            $FileName_JSON = "$DisplayName" + "_" + $(get-date -f dd-MM-yyyy-H-mm-ss.fff) + ".json"
 
             write-host "Export Path:" "$ExportPath"
 
-            $Object | Export-Csv -LiteralPath "$ExportPath\$FileName_CSV" -Delimiter "," -NoTypeInformation -Append
             $JSON1 | Set-Content -LiteralPath "$ExportPath\$FileName_JSON"
-            write-host "CSV created in $ExportPath\$FileName_CSV..." -f cyan
             write-host "JSON created in $ExportPath\$FileName_JSON..." -f cyan
             
         }
@@ -382,6 +470,8 @@ $global:authToken = Get-AuthToken -User $User
 
 ####################################################
 
+#region ExportPath
+
 $ExportPath = Read-Host -Prompt "Please specify a path to export the policy data to e.g. C:\IntuneOutput"
 
     # If the directory path doesn't exist prompt user to create the directory
@@ -413,14 +503,85 @@ $ExportPath = Read-Host -Prompt "Please specify a path to export the policy data
 
 Write-Host
 
+#endregion
+
 ####################################################
 
-$CPs = Get-DeviceCompliancePolicy
+# Get all Endpoint Security Templates
+$Templates = Get-EndpointSecurityTemplate
 
-    foreach($CP in $CPs){
+####################################################
 
-    write-host "Device Compliance Policy:"$CP.displayName -f Yellow
-    Export-JSONData -JSON $CP -ExportPath "$ExportPath"
-    Write-Host
+# Get all Endpoint Security Policies configured
+$ESPolicies = Get-EndpointSecurityPolicy | Sort-Object displayName
+
+####################################################
+
+# Looping through all policies configured
+foreach($policy in $ESPolicies){
+
+    Write-Host "Endpoint Security Policy:"$policy.displayName -ForegroundColor Yellow
+    $PolicyName = $policy.displayName
+    $PolicyDescription = $policy.description
+    $policyId = $policy.id
+    $TemplateId = $policy.templateId
+    $roleScopeTagIds = $policy.roleScopeTagIds
+
+    $ES_Template = $Templates | ?  { $_.id -eq $policy.templateId }
+
+    $TemplateDisplayName = $ES_Template.displayName
+    $TemplateId = $ES_Template.id
+    $versionInfo = $ES_Template.versionInfo
+
+    if($TemplateDisplayName -eq "Endpoint detection and response"){
+
+        Write-Host "Export of 'Endpoint detection and response' policy not included in sample script..." -ForegroundColor Magenta
+        Write-Host
 
     }
+
+    else {
+
+        ####################################################
+
+        # Creating object for JSON output
+        $JSON = New-Object -TypeName PSObject
+
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'displayName' -Value "$PolicyName"
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'description' -Value "$PolicyDescription"
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'roleScopeTagIds' -Value $roleScopeTagIds
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'TemplateDisplayName' -Value "$TemplateDisplayName"
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'TemplateId' -Value "$TemplateId"
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'versionInfo' -Value "$versionInfo"
+
+        ####################################################
+
+        # Getting all categories in specified Endpoint Security Template
+        $Categories = Get-EndpointSecurityTemplateCategory -TemplateId $TemplateId
+
+        # Looping through all categories within the Template
+
+        foreach($category in $Categories){
+
+            $categoryId = $category.id
+
+            $Settings += Get-EndpointSecurityCategorySetting -PolicyId $policyId -categoryId $categoryId
+        
+        }
+
+        # Adding All settings to settingsDelta ready for JSON export
+        Add-Member -InputObject $JSON -MemberType 'NoteProperty' -Name 'settingsDelta' -Value @($Settings)
+
+        ####################################################
+
+        Export-JSONData -JSON $JSON -ExportPath "$ExportPath"
+
+        Write-Host
+
+        # Clearing up variables so previous data isn't exported in each policy
+        Clear-Variable JSON
+        Clear-Variable Settings
+
+    }
+
+}
