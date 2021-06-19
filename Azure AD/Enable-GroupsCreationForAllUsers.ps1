@@ -2,8 +2,7 @@
 <##################################################################################################
 #
 .SYNOPSIS
-Define a security group using the variable $GroupName
-This will limit the privilege for creating Office 365 Groups to the specified security group
+This will re-enable creating Microsoft 365 Groups for all users
 
 You must have the Preview version of the Azure AD PowerShell module:
     Uninstall-Module AzureAD
@@ -13,7 +12,7 @@ Source of script:
 https://docs.microsoft.com/en-us/microsoft-365/admin/create-groups/manage-creation-of-groups?view=o365-worldwide
 
 .NOTES
-    FileName:    Limit-GroupsCreation.ps1
+    FileName:    Enable-GroupsCreationForAllUsers.ps1
     Author:      Alex Fields, ITProMentor.com
     Created:     February 2020
     Revised:     April 2021
@@ -23,8 +22,8 @@ https://docs.microsoft.com/en-us/microsoft-365/admin/create-groups/manage-creati
 
 Import-Module AzureADPreview -Force
 
-$GroupName = "sg-Group Creators"
-$AllowGroupCreation = "False"
+$GroupName = ""
+$AllowGroupCreation = "True"
 
 
 $CheckForGroup = Get-AzureADGroup -All $true | Where-Object DisplayName -eq $GroupName
